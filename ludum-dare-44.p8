@@ -134,9 +134,45 @@ function intersect(min1, max1, min2, max2)
          min(min1,max1) < max(min2,max2)
 end
 
+animation = class(function(a, frames, rate)
+  a.frames = frames
+  a.rate = rate or 2
+
+  a.playing = true
+end)
+
+function animation:draw(x, y, flipx)
+  local i = 0
+
+  if self.playing then
+    i = flr(frame / self.rate) % #self.frames
+  end
+
+  local frame = self.frames[i + 1]
+  frame:draw(x,y,flipx)
+end
+
+function animation:start()
+  self.playing = true
+end
+
+function animation:stop()
+  self.playing = false
+end
+
 sprite = class(function(s,name)
   if name == "player" then
     s.x = 0
+    s.y = 20
+    s.w = 8
+    s.h = 12
+  elseif name == "player2" then
+    s.x = 8
+    s.y = 20
+    s.w = 8
+    s.h = 12
+  elseif name == "player3" then
+    s.x = 16
     s.y = 20
     s.w = 8
     s.h = 12
@@ -186,7 +222,13 @@ player = class(function(p)
   p.spawnpos = p.pos:clone()
   p.checkpointpos = p.pos:clone()
 
-  p.sprite = sprites.player
+  p.standingsprite = sprite("player")
+  p.walkinganimation = animation({
+    sprite("player2"),
+    sprite("player3"),
+  }, 6)
+
+  p.sprite = p.standingsprite
 end)
 
 function player:win()
@@ -287,6 +329,15 @@ function player:preupdate()
     self.movingl = false
     self.movingr = true
     self.facingleft = false
+  else
+    self.movingr = false
+    self.movingl = false
+  end
+
+  if (self.movingl or self.movingr) and self.onplatform then
+    self.sprite = self.walkinganimation
+  else
+    self.sprite = self.standingsprite
   end
 
   if btn(2) then
@@ -374,9 +425,7 @@ function player:postupdate()
 end
 
 function player:draw()
-  local s = sprite("player")
-
-  s:draw(self.pos.x,self.pos.y, self.facingleft)
+  self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
 end
 
 function player:gettiles(x,y)
