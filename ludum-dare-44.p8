@@ -47,18 +47,28 @@ config = {
   -- player health
   maxhealth = 58,
   starthealth = 29,
-  dmgamount = 10,
+  falldmgamount = 10,
+  atkdmgamount = 10,
   hitstuntime = 30,
+  hitstunflashframerate = 4,
 
   -- player time
   maxtime = 58,
   starttime = 29,
-  tickframes = 30, -- note: game runs at 30fps
+  tickframes = 30,
   tickamount = 1,
 
   -- amount lost/gained each time you convert between health/time
   conversionhealth = 5,
   conversiontime = 5,
+
+  -- enemies
+  -- allow the player to visually collide without getting hurt
+  enemyhitboxinset = {3,2},
+
+  -- ui
+  healthtext = 'HEALTH',
+  timetext = 'BATTERY',
 }
 
 -- class.lua
@@ -287,14 +297,14 @@ function player:tick()
   self:checkhealthtime()
 end
 
-function player:hurt()
-  self.health -= config.dmgamount
+function player:hurt(amount)
+  self.health -= amount
   self:checkhealthtime()
 end
 
 function player:attacked()
   if self.hitstuntimer == 0 then
-    self:hurt()
+    self:hurt(config.atkdmgamount)
 
     self.hitstuntimer = config.hitstuntime
   end
@@ -327,7 +337,7 @@ end
 
 function player:fall()
   self.pos = self.checkpointpos:clone()
-  self:hurt()
+  self:hurt(config.falldmgamount)
   self.facingleft = false
 end
 
@@ -484,7 +494,7 @@ function player:postupdate()
 end
 
 function player:draw()
-  if self.hitstuntimer <= 0 or animateoptions(2, 4) == 0 then
+  if self.hitstuntimer <= 0 or animateoptions(2, config.hitstunflashframerate) == 0 then
     self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
   end
 end
@@ -570,8 +580,9 @@ function statbar:draw()
 
   spr(78, self.x + self.w / 2 - 3,self.y+8)
 
-  print('LIFE', self.x + 3, self.y + 1, 7)
-  print('TIME', self.x + self.w - 4*4, self.y + 1, 7)
+  print(config.healthtext, self.x + 3, self.y + 1, 7)
+  local text = config.timetext
+  print(text, self.x + self.w - #text*4, self.y + 1, 7)
 end
 
 enemy = class(function(e, x, y)
@@ -582,10 +593,10 @@ end)
 
 function enemy:gethitbox()
   return hitbox(
-    self.pos.x,
-    self.pos.y,
-    8,
-    12
+    self.pos.x + config.enemyhitboxinset[1],
+    self.pos.y + config.enemyhitboxinset[2],
+    8 - config.enemyhitboxinset[1],
+    12 - config.enemyhitboxinset[2]
   )
 end
 
@@ -736,9 +747,6 @@ function level:draw()
   camera()
 
   statbar(4,2,118, self.player):draw()
-
-  -- print('health: ' .. self.player.health, 4,4, 1)
-  -- print('time: ' .. self.player.time, 92,4, 1)
 end
 
 function getbitfield(selectedflags)
