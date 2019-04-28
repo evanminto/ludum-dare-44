@@ -160,6 +160,9 @@ player = class(function(p)
   p.holdingjumpbutton = false
   p.jumpblocked = false
 
+  p.health2timesfxplayed = false
+  p.time2healthsfxplayed = false
+
   p.facingleft = false
 
   p.xmin = 0
@@ -287,9 +290,27 @@ function player:preupdate()
   end
 
   if btn(4) then
-    self:time2health()
-  elseif btn(5) then
-    self:health2time()
+    if not btn(5) then
+      self:time2health()
+      if not self.time2healthsfxplayed then
+        sfx(1)
+        self.time2healthsfxplayed = true
+      end
+    end
+  else
+      self.time2healthsfxplayed = false
+  end
+
+  if btn(5) then
+    if not btn(4) then
+      self:health2time()
+      if not self.health2timesfxplayed then
+        sfx(2)
+        self.health2timesfxplayed = true
+      end
+    end
+  else
+      self.health2timesfxplayed = false
   end
 
   self.vel.y += gravity
