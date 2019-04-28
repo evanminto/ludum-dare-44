@@ -48,6 +48,7 @@ config = {
   maxhealth = 58,
   starthealth = 29,
   dmgamount = 10,
+  hitstuntime = 30,
 
   -- player time
   maxtime = 58,
@@ -135,6 +136,35 @@ function intersect(min1, max1, min2, max2)
          min(min1,max1) < max(min2,max2)
 end
 
+function intersect(min1, max1, min2, max2)
+  return max(min1,max1) > min(min2,max2) and
+         min(min1,max1) < max(min2,max2)
+end
+
+hitbox = class(function(hb, x, y, w, h)
+  hb.x = x
+  hb.y = y
+  hb.w = w
+  hb.h = h
+end)
+
+function hitbox:getx1()
+  return self.x + self.w
+end
+
+function hitbox:gety1()
+  return self.y + self.h
+end
+
+function hitbox:iscolliding(other)
+  return intersect(self.x, self.x + self.w, other.x, other.x + other.w) and
+         intersect(self.y, self.y + self.h, other.y, other.y + other.h)
+end
+
+function animateoptions(numoptions, rate)
+  return flr(frame / rate) % numoptions
+end
+
 animation = class(function(a, frames, rate)
   a.frames = frames
   a.rate = rate or 2
@@ -146,7 +176,7 @@ function animation:draw(x, y, flipx)
   local i = 0
 
   if self.playing then
-    i = flr(frame / self.rate) % #self.frames
+    i = animateoptions(#self.frames, self.rate)
   end
 
   local frame = self.frames[i + 1]
@@ -217,6 +247,8 @@ player = class(function(p)
   p.health = config.starthealth
   p.time = config.starttime
 
+  p.hitstuntimer = 0
+
   for i=1,128 do
     for j=1,128 do
       if fget(mget(i,j), flags.playerspawn) then
@@ -237,6 +269,15 @@ player = class(function(p)
   p.sprite = p.standingsprite
 end)
 
+function player:gethitbox()
+  return hitbox(
+    self.pos.x,
+    self.pos.y,
+    8,
+    12
+  )
+end
+
 function player:win()
   self:respawn()
 end
@@ -249,6 +290,14 @@ end
 function player:hurt()
   self.health -= config.dmgamount
   self:checkhealthtime()
+end
+
+function player:attacked()
+  if self.hitstuntimer == 0 then
+    self:hurt()
+
+    self.hitstuntimer = config.hitstuntime
+  end
 end
 
 function player:checkhealthtime()
@@ -386,6 +435,10 @@ function player:preupdate()
       self.health2timesfxplayed = false
   end
 
+  if self.hitstuntimer > 0 then
+    self.hitstuntimer -= 1
+  end
+
   self.vel.y += gravity
   self.d = self.d:add(self.vel)
 end
@@ -431,7 +484,9 @@ function player:postupdate()
 end
 
 function player:draw()
-  self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
+  if self.hitstuntimer <= 0 or animateoptions(2, 4) == 0 then
+    self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
+  end
 end
 
 function player:gettiles(x,y)
@@ -520,14 +575,22 @@ function statbar:draw()
 end
 
 enemy = class(function(e, x, y)
-  e.x = x
-  e.y = y
+  e.pos = vector(x, y)
 
   e.sprite = sprite('enemy')
 end)
 
+function enemy:gethitbox()
+  return hitbox(
+    self.pos.x,
+    self.pos.y,
+    8,
+    12
+  )
+end
+
 function enemy:draw()
-  self.sprite:draw(self.x, self.y)
+  self.sprite:draw(self.pos.x, self.pos.y)
 end
 
 level = class(function(l)
@@ -612,6 +675,12 @@ function level:update()
 
   self.player:updatey()
   self.player:postupdate()
+
+  foreach(self.enemies, function(e)
+    if e:gethitbox():iscolliding(self.player:gethitbox()) then
+      self.player:attacked()
+    end
+  end)
 end
 
 function level:draw()
@@ -787,7 +856,7 @@ __map__
 0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f060707070708000000000000000000000000000000000000000000000000000000061717141717141417080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f161417171518000000000000000000000000000000000000000000000607080000160b0c170b0c170b0c1800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0000000000000000000000000000000000000000000000
 0a0f0a0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f16170b0c1718000000000000000000000000000000000000000000001617180000161b1c171b1c151b1c1800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0000000000000000000000000a00000000000000000000
-1a191a0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0607070707171b1c1708000000000000000000000000000000000000000000001617180000161b1c151b1c171b1c1800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0000000000000000000000001a00000000000000000000
+1a191a0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f3b0f0f0f0607070707171b1c1708000000000000000000000000000000000000000000001617180000161b1c151b1c171b1c1800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0000000000000000000000001a00000000000000000000
 070707080f0f0f0f0f0f0f0f0f0f0f0f0f0f0f19190f0f0f0f380f0f0f0f0f060707080f0f1615171717152b2c1718000000000000000000000000000000000000000006070815180000161b1c171b1c151b1c1800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0000000000000a00000000001a00000000000000000000
 171714180f0f0f0f0f0f0f0f0f0f0f0f0f0f060707070707070707080f0f0f161517180f0f161715171517191917080000000000000000000000000a0000000000000f16141515180000162b2c172b2c172b2c1800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0000000000001a00000000001a00000000000000000000
 0c1717180f0f0f0f0f0f0f0f3b0f380f0f0f161417171717141717180f0f0f161715180f0f161717151717171717180000000000000000000000001a0000000000000f161717171800001607071707071707071800000000000f0f0f0f0f0f0f0f0f0f0f0f0f0f0f190000000000001a00000000001a00000000003a3a3a0000
