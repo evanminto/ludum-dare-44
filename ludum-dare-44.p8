@@ -44,11 +44,13 @@ config = {
   },
 
   -- player health
-  maxhealth = 100,
-  dmgamount = 25,
+  maxhealth = 58,
+  starthealth = 29,
+  dmgamount = 10,
 
   -- player time
-  maxtime = 100,
+  maxtime = 58,
+  starttime = 29,
   tickframes = 30, -- note: game runs at 30fps
   tickamount = 1,
 
@@ -170,8 +172,8 @@ player = class(function(p)
   p.ymin = -10000
   p.ymax = 10000
 
-  p.health = config.maxhealth
-  p.time = config.maxtime
+  p.health = config.starthealth
+  p.time = config.starttime
 
   for i=1,128 do
     for j=1,128 do
@@ -213,8 +215,8 @@ end
 
 function player:respawn()
   self.pos = self.spawnpos:clone()
-  self.health = config.maxhealth
-  self.time = config.maxtime
+  self.health = config.starthealth
+  self.time = config.starttime
   self.facingleft = false
 end
 
@@ -233,15 +235,29 @@ function player:fall()
 end
 
 function player:time2health()
-  self.time -= config.conversiontime
-  self.health += config.conversionhealth
+  local success = false
+  if self.health + config.conversionhealth <= config.maxhealth and self.time -
+  config.conversiontime > 0 then
+    self.time -= config.conversiontime
+    self.health += config.conversionhealth
+    success = true
+  end
   self:checkhealthtime()
+
+  return success
 end
 
 function player:health2time()
-  self.health -= config.conversionhealth
-  self.time += config.conversiontime
+  local success = false
+  if self.time + config.conversiontime <= config.maxtime and self.health -
+  config.conversionhealth > 0 then
+    self.health -= config.conversionhealth
+    self.time += config.conversiontime
+    success = true
+  end
   self:checkhealthtime()
+
+  return success
 end
 
 function player:preupdate()
@@ -291,8 +307,8 @@ function player:preupdate()
 
   if btn(4) then
     if not btn(5) then
-      self:time2health()
-      if not self.time2healthsfxplayed then
+      local success = self:time2health()
+      if success and not self.time2healthsfxplayed then
         sfx(1)
         self.time2healthsfxplayed = true
       end
@@ -303,8 +319,8 @@ function player:preupdate()
 
   if btn(5) then
     if not btn(4) then
-      self:health2time()
-      if not self.health2timesfxplayed then
+      local success = self:health2time()
+      if success and not self.health2timesfxplayed then
         sfx(2)
         self.health2timesfxplayed = true
       end
