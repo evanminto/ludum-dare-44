@@ -43,11 +43,6 @@ config = {
     }
   },
 
-  -- flags to show when drawing the main level layer
-  levelflags = {
-    flags.drawable,
-  },
-
   -- player health
   maxhealth = 100,
   dmgamount = 25,
@@ -499,14 +494,6 @@ function level:draw()
 
   self.player:draw()
 
-  -- camera()
-  -- map(0, 16, 0, 0, 32, 32)
-
-
-  -- map(0,0,0,0,128,32,getbitfield(config.levelflags))
-  -- self.player:draw()
-
-  -- camera()
   print('health: ' .. self.player.health, 4,4, 1)
   print('time: ' .. self.player.time, 92,4, 1)
 end
