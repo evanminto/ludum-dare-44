@@ -63,6 +63,7 @@ config = {
   conversiontime = 5,
 
   -- enemies
+  enemyspeed = 1,
   -- allow the player to visually collide without getting hurt
   enemyhitboxinset = {3,2},
 
@@ -322,6 +323,7 @@ end
 
 function player:respawn()
   self.pos = self.spawnpos:clone()
+  self.checkpointpos = self.spawnpos:clone()
   self.health = config.starthealth
   self.time = config.starttime
   self.facingleft = false
@@ -406,7 +408,7 @@ function player:preupdate()
   end
 
   if btn(2) then
-    if (self.onplatform or frame - self.lastonplatform <= config.latejumpframes) and not self.jumpblocked then
+    if (self.onplatform or (self.lastonplatform ~= nil and frame - self.lastonplatform <= config.latejumpframes)) and not self.jumpblocked then
       self.vel.y -= config.jumpspeed
       self.jumptimer = config.maxjumpframes
     end
@@ -585,8 +587,19 @@ function statbar:draw()
   print(text, self.x + self.w - #text*4, self.y + 1, 7)
 end
 
+function isobstacle(x, y)
+  local xcell = flr(x / 8)
+  local ycell = flr(y / 8)
+  return fget(mget(xcell,ycell), flags.obstacle)
+end
+
 enemy = class(function(e, x, y)
   e.pos = vector(x, y)
+
+  e.height = 12
+  e.width = 8
+  e.movingr = true
+  e.movingl = false
 
   e.sprite = sprite('enemy')
 end)
@@ -600,8 +613,34 @@ function enemy:gethitbox()
   )
 end
 
+function enemy:update()
+  local newpos = self.pos
+
+  if self.movingr then
+    newpos = self.pos:add(vector(config.enemyspeed, 0))
+
+    -- TODO: Fix weird math here
+    if not isobstacle(newpos.x + self.width - 2, newpos.y + self.height + 1) then
+      self.movingr = false
+      self.movingl = true
+      newpos = self.pos:add(vector(-config.enemyspeed, 0))
+    end
+  elseif self.movingl then
+    newpos = self.pos:add(vector(-config.enemyspeed, 0))
+
+    -- TODO: Fix weird math here
+    if not isobstacle(newpos.x - 1 + 2, newpos.y + self.height + 1) then
+      self.movingr = true
+      self.movingl = false
+      newpos = self.pos:add(vector(config.enemyspeed, 0))
+    end
+  end
+
+  self.pos = newpos
+end
+
 function enemy:draw()
-  self.sprite:draw(self.pos.x, self.pos.y)
+  self.sprite:draw(self.pos.x, self.pos.y, self.movingl)
 end
 
 level = class(function(l)
@@ -688,6 +727,8 @@ function level:update()
   self.player:postupdate()
 
   foreach(self.enemies, function(e)
+    e:update()
+
     if e:gethitbox():iscolliding(self.player:gethitbox()) then
       self.player:attacked()
     end
