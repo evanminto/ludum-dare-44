@@ -459,6 +459,9 @@ function statbar:draw()
   sspr(120 + 7,32, 1,8, self.x+j+1,self.y)
 
   spr(78, self.x + self.w / 2 - 3,self.y+8)
+
+  print('LIFE', self.x + 3, self.y + 1, 7)
+  print('TIME', self.x + self.w - 4*4, self.y + 1, 7)
 end
 
 level = class(function(l)
