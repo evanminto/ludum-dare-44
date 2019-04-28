@@ -2,6 +2,44 @@ pico-8 cartridge // http://www.pico-8.com
 version 16
 __lua__
 
+flags = {
+  obstacle = 1,
+  checkpoint = 2,
+  playerspawn = 3,
+  win = 4,
+}
+
+config = {
+  -- Amount the player moves left/right every frame
+  movespeed = 2,
+
+  -- Vertical speed applied while jumping (dampened by gravity)
+  jumpspeed = 4.5,
+
+  -- Gravitational acceleration
+  gravity = 0.4,
+
+  -- Flags to show when drawing the main level layer
+  levelflags = {
+    flags.obstacle,
+    flags.checkpoint,
+    flags.win,
+  },
+
+  -- Player health
+  maxhealth = 100,
+  dmgamount = 25,
+
+  -- Player time
+  maxtime = 100,
+  tickframes = 30,
+  tickamount = 1,
+
+  -- Amount lost/gained each time you convert between health/time
+  conversionhealth = 5,
+  conversiontime = 5,
+}
+
 -- class.lua
 -- compatible with lua 5.1 (not 5.0).
 function class(base, init)
@@ -96,7 +134,6 @@ player = class(function(p)
   p.d = vector()
   p.height = 12
   p.width = 8
-  p.gravity = 0.4
   p.onplatform = false
   p.movingl = false
   p.movingr = false
@@ -110,8 +147,8 @@ player = class(function(p)
   p.ymin = -10000
   p.ymax = 10000
 
-  p.health = 100
-  p.time = 100
+  p.health = config.maxhealth
+  p.time = config.maxtime
 
   for i=1,128 do
     for j=1,128 do
@@ -132,12 +169,12 @@ function player:win()
 end
 
 function player:tick()
-  self.time -= 1
+  self.time -= config.tickamount
   self:checkhealthtime()
 end
 
 function player:hurt()
-  self.health -= 25
+  self.health -= config.dmgamount
   self:checkhealthtime()
 end
 
@@ -153,8 +190,8 @@ end
 
 function player:respawn()
   self.pos = self.spawnpos:clone()
-  self.health = 100
-  self.time = 100
+  self.health = config.maxhealth
+  self.time = config.maxtime
   self.facingleft = false
 end
 
@@ -173,14 +210,14 @@ function player:fall()
 end
 
 function player:time2health()
-  self.time -= 5
-  self.health += 5
+  self.time -= config.conversiontime
+  self.health += config.conversionhealth
   self:checkhealthtime()
 end
 
 function player:health2time()
-  self.health -= 5
-  self.time += 5
+  self.health -= config.conversionhealth
+  self.time += config.conversiontime
   self:checkhealthtime()
 end
 
@@ -193,19 +230,19 @@ function player:preupdate()
 
   if btn(0) and btn(1) then
     if self.movingl then
-      self.d.x += 2
+      self.d.x += config.movespeed
       self.facingleft = false
     elseif self.movingr then
-      self.d.x -= 2
+      self.d.x -= config.movespeed
       self.facingleft = true
     end
   elseif btn(0) then
-    self.d.x -= 2
+    self.d.x -= config.movespeed
     self.movingl = true
     self.movingr = false
     self.facingleft = true
   elseif btn(1) then
-    self.d.x += 2
+    self.d.x += config.movespeed
     self.movingl = false
     self.movingr = true
     self.facingleft = false
@@ -229,10 +266,10 @@ function player:preupdate()
   end
 
   if self.holdingjumpbutton and not self.jumpblocked then
-    self.d.y -= 4.5
+    self.d.y -= config.jumpspeed
   end
 
-  self.vel.y += self.gravity
+  self.vel.y += config.gravity
   self.d = self.d:add(self.vel)
 end
 
@@ -279,7 +316,7 @@ function player:postupdate()
     self:fall()
   end
 
-  if frame % 30 == 0 then
+  if frame % config.tickframes == 0 then
     self:tick()
   end
 end
@@ -389,11 +426,7 @@ function level:draw()
     flags.obstacle,
   }))
 
-  map(0,0,0,0,128,32,getbitfield({
-    flags.obstacle,
-    flags.checkpoint,
-    flags.win,
-  }))
+  map(0,0,0,0,128,32,getbitfield(config.levelflags))
   self.player:draw()
 
   camera()
@@ -426,13 +459,6 @@ frame = 0
 sprites = {
   player = 0,
   roof = 23,
-}
-
-flags = {
-  obstacle = 1,
-  checkpoint = 2,
-  playerspawn = 3,
-  win = 4,
 }
 
 levels = {
