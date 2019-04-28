@@ -44,11 +44,13 @@ config = {
   },
 
   -- player health
-  maxhealth = 100,
-  dmgamount = 25,
+  maxhealth = 58,
+  starthealth = 29,
+  dmgamount = 10,
 
   -- player time
-  maxtime = 100,
+  maxtime = 58,
+  starttime = 29,
   tickframes = 30, -- note: game runs at 30fps
   tickamount = 1,
 
@@ -167,8 +169,8 @@ player = class(function(p)
   p.ymin = -10000
   p.ymax = 10000
 
-  p.health = config.maxhealth
-  p.time = config.maxtime
+  p.health = config.starthealth
+  p.time = config.starttime
 
   for i=1,128 do
     for j=1,128 do
@@ -210,8 +212,8 @@ end
 
 function player:respawn()
   self.pos = self.spawnpos:clone()
-  self.health = config.maxhealth
-  self.time = config.maxtime
+  self.health = config.starthealth
+  self.time = config.starttime
   self.facingleft = false
 end
 
@@ -230,14 +232,20 @@ function player:fall()
 end
 
 function player:time2health()
-  self.time -= config.conversiontime
-  self.health += config.conversionhealth
+  if self.health + config.conversionhealth <= config.maxhealth and self.time -
+  config.conversiontime > 0 then
+    self.time -= config.conversiontime
+    self.health += config.conversionhealth
+  end
   self:checkhealthtime()
 end
 
 function player:health2time()
-  self.health -= config.conversionhealth
-  self.time += config.conversiontime
+  if self.time + config.conversiontime <= config.maxtime and self.health -
+  config.conversionhealth > 0 then
+    self.health -= config.conversionhealth
+    self.time += config.conversiontime
+  end
   self:checkhealthtime()
 end
 
