@@ -11,13 +11,18 @@ flags = {
 
 config = {
   -- amount the player moves left/right every frame
-  movespeed = 2,
+  movespeed = 2.5,
 
   -- vertical speed applied while jumping (dampened by gravity)
-  jumpspeed = 4.5,
-
+  jumpspeed = 3.25,
   -- gravitational acceleration
-  gravity = 0.4,
+  gravity = 0.55,
+  -- max frames that player can hold a jump
+  maxjumpframes = 30,
+  -- suppresses gravity while holding a jump. 0 doesn't suppress, 1 completely suppresses
+  ascentcontrol = 0.7,
+  -- lets the player jump if they were on a platform within the past n frames
+  latejumpframes = 1,
 
   -- flags to show when drawing the main level layer
   levelflags = {
@@ -134,9 +139,12 @@ player = class(function(p)
   p.d = vector()
   p.height = 12
   p.width = 8
+  p.lastonplatform = nil
   p.onplatform = false
   p.movingl = false
   p.movingr = false
+
+  p.jumptimer = 0
   p.holdingjumpbutton = false
   p.jumpblocked = false
 
@@ -228,6 +236,8 @@ function player:preupdate()
   self.ymin = -10000
   self.ymax = 10000
 
+  local gravity = config.gravity
+
   if btn(0) and btn(1) then
     if self.movingl then
       self.d.x += config.movespeed
@@ -249,14 +259,19 @@ function player:preupdate()
   end
 
   if btn(2) then
-    self.holdingjumpbutton = true
-  else
-    self.holdingjumpbutton = false
-
-    -- velocity threshhold for late jumping
-    if not self.jumpblocked and self.vel.y > 0.75 then
-      self.jumpblocked = true
+    if (self.onplatform or frame - self.lastonplatform <= config.latejumpframes) and not self.jumpblocked then
+      self.vel.y -= config.jumpspeed
+      self.jumptimer = config.maxjumpframes
     end
+
+    if self.jumptimer > 0 then
+      gravity = config.gravity * ((1 - config.ascentcontrol) + config.ascentcontrol * (1 - self.jumptimer / config.maxjumpframes))
+      self.jumptimer -= 1
+    end
+
+    self.jumpblocked = true
+  else
+    self.jumpblocked = false
   end
 
   if btn(4) then
@@ -265,11 +280,7 @@ function player:preupdate()
     self:health2time()
   end
 
-  if self.holdingjumpbutton and not self.jumpblocked then
-    self.d.y -= config.jumpspeed
-  end
-
-  self.vel.y += config.gravity
+  self.vel.y += gravity
   self.d = self.d:add(self.vel)
 end
 
@@ -282,14 +293,6 @@ end
 function player:updatey()
   if self.onplatform then
     self.vel.y = min(self.vel.y, 0)
-
-    if self.holdingjumpbutton then
-      self.jumpblocked = true
-    end
-
-    if self.jumpblocked and not self.holdingjumpbutton then
-      self.jumpblocked = false
-    end
   end
 
   self.pos.y += self.d.y
@@ -372,6 +375,20 @@ end)
 
 function level:update()
   self.player.onplatform = false
+
+  self.player.d.y = 1
+  local tiles = self.player:gettiles(false, true)
+
+  foreach(tiles, function(t)
+    if fget(mget(t[1],t[2]), flags.obstacle) then
+      self.player.onplatform = true
+    end
+  end)
+
+  if self.player.onplatform then
+    self.player.lastonplatform = frame
+  end
+
   self.player:preupdate()
 
   local xtiles = self.player:gettiles(true, false)
@@ -537,7 +554,7 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 20202020202020202020202020202020f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f00000000000000000000000000000000000
 __gff__
-0000000000000202020000020200000000000000000022024200000202000000000000000000000000000002020000000000000000000000040810000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000202020000020200000000000000000002020200000202000000000000000000000000000002020000000000000000000000040810000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0707070f0f0f0f0f0f0f0f0f0f0f0f0f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
