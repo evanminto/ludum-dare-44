@@ -32,7 +32,7 @@ config = {
 
   -- Player time
   maxtime = 100,
-  tickframes = 30,
+  tickframes = 30, -- note: game runs at 30fps
   tickamount = 1,
 
   -- Amount lost/gained each time you convert between health/time
