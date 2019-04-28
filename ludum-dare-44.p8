@@ -25,6 +25,24 @@ config = {
   -- lets the player jump if they were on a platform within the past n frames
   latejumpframes = 1,
 
+  layers = {
+    {
+      start = {0,16},
+      size = {32,32},
+      camerafollow = 0,
+      transparent = 0,
+    },
+    {
+      start = {0,0},
+      size = {128,32},
+      camerafollow = 1,
+      flags = {
+        flags.drawable
+      },
+      transparent = 0,
+    }
+  },
+
   -- flags to show when drawing the main level layer
   levelflags = {
     flags.drawable,
@@ -438,19 +456,57 @@ end
 function level:draw()
   local camerax = self.player.pos.x - 64 + 4
   local cameray = self.player.pos.y - 64 + 4
-
-  camera(0, 0)
-  map(0, 16, 0, 0, 32, 32)
-
   local clampedcamerax = mid(0, camerax, self.width - 128)
   local clampedcameray = mid(0, cameray, 128 - 128)
 
-  camera(clampedcamerax, clampedcameray)
+  foreach(config.layers, function(l)
+    if l.camerafollow and l.camerafollow > 0 then
+      camera(clampedcamerax * l.camerafollow, clampedcameray * l.camerafollow)
+    else
+      camera()
+    end
 
-  map(0,0,0,0,128,32,getbitfield(config.levelflags))
+    local flags = 0
+
+    if l.flags then
+      flags = getbitfield(l.flags)
+    end
+
+    if l.transparent ~= nil then
+      palt(0, false)
+
+      if type(l.transparent) == 'table' then
+        foreach(l.transparent, function(c)
+          palt(c, true)
+        end)
+      else
+        palt(l.transparent, true)
+      end
+    else
+      palt()
+    end
+
+    map(
+      l.start[1],
+      l.start[2],
+      0,
+      0,
+      l.size[1],
+      l.size[2],
+      flags
+    )
+  end)
+
   self.player:draw()
 
-  camera()
+  -- camera()
+  -- map(0, 16, 0, 0, 32, 32)
+
+
+  -- map(0,0,0,0,128,32,getbitfield(config.levelflags))
+  -- self.player:draw()
+
+  -- camera()
   print('health: ' .. self.player.health, 4,4, 1)
   print('time: ' .. self.player.time, 92,4, 1)
 end
