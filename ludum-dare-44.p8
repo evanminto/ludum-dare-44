@@ -8,6 +8,7 @@ flags = {
   checkpoint = 2,
   playerspawn = 3,
   win = 4,
+  enemy = 5,
 }
 
 config = {
@@ -33,7 +34,7 @@ config = {
       transparent = 11,
     },
     {
-      start = {0,0},
+      level = true,
       size = {128,16},
       camerafollow = 1,
       flags = {
@@ -42,6 +43,15 @@ config = {
       transparent = 0,
       enemies = true,
     }
+  },
+
+  levelsections = {
+    {
+      start = {0,0},
+    },
+    {
+      start = {0,32},
+    },
   },
 
   -- player health
@@ -280,6 +290,10 @@ player = class(function(p)
   p.sprite = p.standingsprite
 end)
 
+function player:init()
+  self.xmax = levels[1].width
+end
+
 function player:gethitbox()
   return hitbox(
     self.pos.x,
@@ -372,7 +386,7 @@ end
 function player:preupdate()
   self.d = vector()
   self.xmin = 0
-  self.xmax = 1024
+  self.xmax = levels[1].width
   self.ymin = -10000
   self.ymax = 10000
 
@@ -518,11 +532,23 @@ function player:gettiles(x,y)
     vmid = bottom - 1
   end
   if right - left > 1 then
-    vmid = right - 1
+    hmid = right - 1
+  end
+
+  local offset = max(ceil(left / 127), ceil(right / 127))
+
+  if config.levelsections[offset] then
+    top += config.levelsections[offset].start[2]
+    if vmid then
+      vmid += config.levelsections[offset].start[2]
+    end
+    bottom += config.levelsections[offset].start[2]
+
+    left = left % 128
+    right = right % 128
   end
 
   local tiles = {}
-  tiles.bottom = {}
 
   add(tiles,{left,top})
   if hmid ~= nil then add(tiles,{hmid,top}) end
@@ -587,10 +613,23 @@ function statbar:draw()
   print(text, self.x + self.w - #text*4, self.y + 1, 7)
 end
 
+function leveltiletomaptile(x,y)
+  local offset = ceil(x / 127)
+
+  if config.levelsections[offset] then
+    y += config.levelsections[offset].start[2]
+    x = x % 128
+  end
+
+
+  return {x,y}
+end
+
 function isobstacle(x, y)
   local xcell = flr(x / 8)
   local ycell = flr(y / 8)
-  return fget(mget(xcell,ycell), flags.obstacle)
+  local newcell = leveltiletomaptile(xcell, ycell)
+  return fget(mget(newcell[1],newcell[2]), flags.obstacle)
 end
 
 enemy = class(function(e, x, y)
@@ -651,17 +690,48 @@ level = class(function(l)
 end)
 
 function level:init()
-  foreach(config.layers, function(l)
-    if l.enemies then
-      for i=0,l.size[1] do
-        for j=0,l.size[2] do
-          if fget(mget(i+l.start[1], j+l.start[2]), 5) then
-            add(self.enemies, enemy(i*8,j*8 - 4))
-          end
+  local sectionindex = 0
+
+  foreach(config.levelsections, function(s)
+    for i=0,128 do
+      for j=0,16 do
+        local x = i + s.start[1]
+        local y = j + s.start[2]
+        if fget(mget(x,y), flags.enemy) then
+          local xy = self:maptilestoleveltiles(x,y)
+          add(self.enemies, enemy(xy[1] * 8, xy[2] * 8 - 4))
         end
       end
     end
+    sectionindex += 1
   end)
+
+  self.width = (sectionindex + 1) * 128 * 8
+  -- foreach(config.layers, function(l)
+  --   if l.level and l.enemies then
+  --     for i=0,l.size[1] do
+  --       for j=0,l.size[2] do
+  --         if fget(mget(i % 128, j+l.start[2]), 5) then
+  --           add(self.enemies, enemy(i*8,j*8 - 4))
+  --         end
+  --       end
+  --     end
+  --   end
+  -- end)
+end
+
+function level:maptilestoleveltiles(x,y)
+  local sectionindex = 0
+  foreach(config.levelsections, function(s)
+    if x >= s.start[1] and x < s.start[1] + 128 and y >= s.start[2] and y <
+    s.start[2] + 32 then
+      x += sectionindex * 128
+      y -= s.start[2]
+    end
+    sectionindex += 1
+  end)
+
+  return {x,y}
 end
 
 function level:update()
@@ -688,11 +758,14 @@ function level:update()
   local xmin = self.player.xmin
   foreach(xtiles, function(t)
     if fget(mget(t[1],t[2]), flags.obstacle) then
+      local lt = self:maptilestoleveltiles(t[1],t[2])
+      local t1 = lt[1]
+      local t2 = lt[2]
       if self.player.d.x > 0 then
-        xmax = min(xmax, t[1] * 8 - self.player.width)
+        xmax = min(xmax, t1 * 8 - self.player.width)
       end
       if self.player.d.x < 0 then
-        xmin = max(xmin, t[1] * 8 + self.player.width)
+        xmin = max(xmin, t1 * 8 + self.player.width)
       end
     end
   end)
@@ -707,12 +780,15 @@ function level:update()
   local ymax = self.player.ymax
   foreach(ytiles, function(t)
     if fget(mget(t[1],t[2]), flags.obstacle) then
+      local lt = self:maptilestoleveltiles(t[1],t[2])
+      local t1 = lt[1]
+      local t2 = lt[2]
       if self.player.d.y > 0 then
         self.player.onplatform = true
-        ymax = min(ymax, t[2] * 8 - self.player.height)
+        ymax = min(ymax, t2 * 8 - self.player.height)
       end
       if self.player.d.y < 0 then
-        ymin = max(ymin, (t[2]+1) * 8)
+        ymin = max(ymin, (t2+1) * 8)
 
         if ymin == self.player.pos.y then
           self.player.jumpblocked = true
@@ -768,15 +844,32 @@ function level:draw()
       palt()
     end
 
-    map(
-      l.start[1],
-      l.start[2],
-      0,
-      0,
-      l.size[1],
-      l.size[2],
-      flags
-    )
+    if l.level then
+      local sectionindex = 0
+      foreach(config.levelsections, function(s)
+        map(
+          s.start[1],
+          s.start[2],
+          sectionindex * 128 * 8,
+          0,
+          l.size[1],
+          l.size[2],
+          flags
+        )
+
+        sectionindex += 1
+      end)
+    else
+      map(
+        l.start[1],
+        l.start[2],
+        0,
+        0,
+        l.size[1],
+        l.size[2],
+        flags
+      )
+    end
   end)
 
   foreach(self.enemies, function(e)
