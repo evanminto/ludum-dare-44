@@ -494,6 +494,8 @@ function level:draw()
 
   self.player:draw()
 
+  camera()
+
   print('health: ' .. self.player.health, 4,4, 1)
   print('time: ' .. self.player.time, 92,4, 1)
 end
