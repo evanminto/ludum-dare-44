@@ -129,17 +129,21 @@ end)
 
 function player:tick()
   self.time -= 1
-
-  if self.time <= 0 then
-    self:outoftime()
-  end
+  self:checkhealthtime()
 end
 
 function player:hurt()
-  self.health -= 20
+  self.health -= 25
+  self:checkhealthtime()
+end
 
+function player:checkhealthtime()
   if self.health <= 0 then
     self:die()
+  end
+
+  if self.time <= 0 then
+    self:outoftime()
   end
 end
 
@@ -167,11 +171,13 @@ end
 function player:time2health()
   self.time -= 5
   self.health += 5
+  self:checkhealthtime()
 end
 
 function player:health2time()
   self.health -= 5
   self.time += 5
+  self:checkhealthtime()
 end
 
 function player:preupdate()
@@ -209,6 +215,12 @@ function player:preupdate()
     if not self.jumpblocked then
       self.jumpblocked = true
     end
+  end
+
+  if btn(4) then
+    self:time2health()
+  elseif btn(5) then
+    self:health2time()
   end
 
   if self.holdingjumpbutton and not self.jumpblocked then
