@@ -739,7 +739,7 @@ function maptiletoleveltile(x,y)
   local sectionindex = 0
   foreach(config.levelsections, function(s)
     if x >= s.start[1] and x < s.start[1] + 128 and y >= s.start[2] and y <
-    s.start[2] + 32 then
+    s.start[2] + 16 then
       x += sectionindex * 128
       y -= s.start[2]
     end
