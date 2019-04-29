@@ -294,8 +294,21 @@ sprite = class(function(s,name)
   end
 end)
 
-function sprite:draw(x,y,flipx)
-  sspr(self.x,self.y,self.w,self.h,x,y, self.w,self.h, flipx)
+function sprite:draw(x,y,flipx, sizex,sizey)
+  local w = self.w
+  local h = self.h
+
+  if sizex then
+    x += (w - sizex) / 2
+    w = sizex
+  end
+
+  if sizey then
+    y += h - sizey
+    h = sizey
+  end
+
+  sspr(self.x,self.y,self.w,self.h, x,y, w,h, flipx)
 end
 
 player = class(function(p)
@@ -627,7 +640,15 @@ function player:draw()
     local option = animateoptions(5, 3, config.respawnframes - self.respawntimer)
 
     if self.respawntimer < config.respawnframes / 2 then
-      self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
+      local frame = config.respawnframes/2 - self.respawntimer
+
+      if self.respawntimer < config.respawnframes / 4 then
+        self.sprite:draw(self.pos.x,self.pos.y, self.facingleft, self.width * 2,
+        self.height/2)
+      else
+        self.sprite:draw(self.pos.x,self.pos.y, self.facingleft, self.width/2,
+        self.height * 1.5)
+      end
     end
 
     if option == 0 then
