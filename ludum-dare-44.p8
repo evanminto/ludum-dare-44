@@ -642,19 +642,6 @@ function player:gettiles(x,y)
     hmid = right - 1
   end
 
-  -- local offset = max(ceil(left / 127), ceil(right / 127))
-
-  -- if config.levelsections[offset] then
-  --   top += config.levelsections[offset].start[2]
-  --   if vmid then
-  --     vmid += config.levelsections[offset].start[2]
-  --   end
-  --   bottom += config.levelsections[offset].start[2]
-
-  --   left = left % 128
-  --   right = right % 128
-  -- end
-
   local tiles = {}
 
   add(tiles,{left,top})
@@ -728,7 +715,12 @@ function statbar:draw()
 end
 
 function leveltiletomaptile(x,y)
-  local offset = ceil(x / 127)
+  local offset = ceil(x / 128)
+
+  -- What the fuck? Whatever, hacking this in for now.
+  if x > 126 and x < 130 then
+    offset = ceil(x / 127)
+  end
 
   if config.levelsections[offset] then
     y += config.levelsections[offset].start[2]
@@ -847,8 +839,8 @@ function level:init()
   local sectionindex = 0
 
   foreach(config.levelsections, function(s)
-    for i=0,128 do
-      for j=0,16 do
+    for i=0,127 do
+      for j=0,15 do
         local x = i + s.start[1]
         local y = j + s.start[2]
         if fget(mget(x,y), flags.enemy) then
@@ -864,7 +856,7 @@ function level:init()
     sectionindex += 1
   end)
 
-  self.width = (sectionindex + 1) * 128 * 8
+  self.width = #config.levelsections * 128 * 8
 end
 
 function level:update()
