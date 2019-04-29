@@ -22,7 +22,8 @@ sound = {
   jump = 0,
   time2health = 1,
   health2time = 2,
-  damage = 3
+  damage = 3,
+  powerup = 4,
 }
 
 config = {
@@ -101,6 +102,7 @@ config = {
   -- powerup
   poweruphealth = 15,
   poweruptime = 15,
+  powerupflashframes = 4,
 
   -- player time
   maxtime = 58,
@@ -344,6 +346,9 @@ player = class(function(p)
   p.hitstuntimer = 0
   p.respawntimer = 0
 
+  p.poweringup = false
+  p.poweringuptimer = 0
+
   p.pos = p:getspawnpos()
 
   p.spawnpos = p.pos:clone()
@@ -417,6 +422,9 @@ function player:powerup()
   self.health += config.poweruphealth
   self.time += config.poweruptime
   self:checkhealthtime()
+  sfx(sound.powerup)
+  self.poweringup = true
+  self.poweringuptimer = config.powerupflashframes
 end
 
 function player:checkhealthtime()
@@ -500,6 +508,14 @@ function player:preupdate()
   self.xmax = levels[1].width
   self.ymin = -10000
   self.ymax = 10000
+
+  if self.poweringuptimer > 0 then
+    self.poweringuptimer -= 1
+
+    if self.poweringuptimer <= 0 then
+      self.poweringup = false
+    end
+  end
 
   local gravity = config.gravity
 
@@ -766,6 +782,12 @@ function statbar:draw()
     if i > nonemptytime then
       pal(8,5)
       pal(14,5)
+    end
+
+    if levels[1].player.poweringup then
+      pal()
+      pal(8,7)
+      pal(14,7)
     end
 
     sspr(120 + 1,32, 1,8, self.x+i,self.y)
