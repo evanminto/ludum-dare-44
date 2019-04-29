@@ -868,11 +868,12 @@ function level:draw()
       end)
     else
       l.repeatx = l.repeatx or 1
+      printh(l.size[1])
       for i=0,l.repeatx-1 do
         map(
           l.start[1],
           l.start[2],
-          i * l.size[1],
+          i * l.size[1] * 8,
           0,
           l.size[1],
           l.size[2],
