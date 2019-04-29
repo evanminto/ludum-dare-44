@@ -55,6 +55,9 @@ config = {
     },
   },
 
+  -- player animation
+  playeranimrate = 4,
+
   -- player health
   maxhealth = 58,
   starthealth = 29,
@@ -74,9 +77,10 @@ config = {
   conversiontime = 5,
 
   -- enemies
-  enemyspeed = 1.25,
+  enemyspeed = 1,
   -- allow the player to visually collide without getting hurt
   enemyhitboxinset = {3,2},
+  enemyanimrate = 8,
 
   -- ui
   healthtext = 'health',
@@ -234,6 +238,11 @@ sprite = class(function(s,name)
     s.y = 20
     s.w = 8
     s.h = 12
+  elseif name == "enemy2" then
+    s.x = 112
+    s.y = 20
+    s.w = 8
+    s.h = 12
   end
 end)
 
@@ -280,7 +289,7 @@ player = class(function(p)
   p.walkinganimation = animation({
     sprite("player2"),
     sprite("player3"),
-  }, 6)
+  }, config.playeranimrate)
 
   p.sprite = p.standingsprite
 end)
@@ -668,7 +677,10 @@ enemy = class(function(e, x, y)
   e.movingr = true
   e.movingl = false
 
-  e.sprite = sprite('enemy')
+  e.sprite = animation({
+    sprite('enemy'),
+    sprite('enemy2'),
+  }, config.enemyanimrate)
 end)
 
 function enemy:gethitbox()
