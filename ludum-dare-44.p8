@@ -92,8 +92,8 @@ config = {
   -- player health
   maxhealth = 58,
   starthealth = 29,
-  falldmgamount = 5,
-  atkdmgamount = 5,
+  falldmgamount = 7,
+  atkdmgamount = 7,
   hitstuntime = 30,
   hitstunflashframerate = 2,
   respawnframes = 30,
@@ -106,7 +106,7 @@ config = {
   maxtime = 58,
   starttime = 29,
   tickframes = 60,
-  tickamount = 0.025,
+  tickamount = 0.04,
   tickevent = 'move',
 
   -- amount lost/gained each time you convert between health/time
@@ -120,8 +120,10 @@ config = {
   enemyanimrate = 8,
 
   -- ui
-  healthtext = 'health',
-  timetext = 'battery',
+  healthtext = 'HEALTH',
+  timetext = 'BATTERY',
+  healthconverttext = 'Z',
+  timeconverttext = 'X',
 }
 
 -- class.lua
@@ -400,13 +402,14 @@ end
 
 function player:starthitstun()
   if self.hitstuntimer == 0 then
-    self:hurt(config.atkdmgamount)
-
     self.hitstuntimer = config.hitstuntime
   end
 end
 
 function player:attacked()
+  if self.hitstuntimer == 0 then
+    self:hurt(config.atkdmgamount)
+  end
   self:starthitstun()
 end
 
@@ -561,9 +564,13 @@ function player:preupdate()
     end
   end
 
+  self.convertingtime2health = false
+  self.convertinghealth2time = false
+
   if btn(4) then
     if not btn(5) then
       local success = self:time2health()
+      if success then self.convertingtime2health = true end
       if success and not self.time2healthsfxplayed then
         sfx(sound.time2health)
         self.time2healthsfxplayed = true
@@ -576,6 +583,7 @@ function player:preupdate()
   if btn(5) then
     if not btn(4) then
       local success = self:health2time()
+      if success then self.convertinghealth2time = true end
       if success and not self.health2timesfxplayed then
         sfx(sound.health2time)
         self.health2timesfxplayed = true
@@ -767,11 +775,37 @@ function statbar:draw()
 
   sspr(120 + 7,32, 1,8, self.x+j+1,self.y)
 
+  pal()
+  if levels[1].player.convertinghealth2time then
+    pal(8,1)
+  elseif levels[1].player.convertingtime2health then
+    pal(1,8)
+  end
   spr(78, self.x + self.w / 2 - 3,self.y+8)
+  pal()
 
-  print(config.healthtext, self.x + 3, self.y + 1, 7)
+  local healthconvertcolor = 14
+  local healthtextcolor = 7
+  if levels[1].player.convertinghealth2time then
+    healthconvertcolor = 5
+    healthtextcolor = 6
+  end
+  local timeconvertcolor = 12
+  local timetextcolor = 7
+  if levels[1].player.convertingtime2health then
+    timeconvertcolor = 5
+    timetextcolor = 6
+  end
+
+  print(config.healthtext, self.x + 3, self.y + 1, healthtextcolor)
   local text = config.timetext
-  print(text, self.x + self.w - #text*4, self.y + 1, 7)
+  print(text, self.x + self.w - #text*4, self.y + 1, timetextcolor)
+
+
+  print(config.healthconverttext, self.x + self.w / 2 -
+  #config.healthconverttext*4 - 4, self.y + 8, healthconvertcolor)
+  print(config.timeconverttext, self.x + self.w / 2 +
+  #config.timeconverttext*4 + 3, self.y + 8, timeconvertcolor)
 end
 
 function leveltiletomaptile(x,y)
