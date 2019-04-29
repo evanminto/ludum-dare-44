@@ -664,7 +664,11 @@ function player:gettiles(x,y)
   local vmid = nil
   local hmid = nil
 
-  if bottom - top > 1 then
+  -- Don't detect collisions above the top of the screen
+  if top < 0 then top = nil end
+  if bottom < 0 then bottom = nil end
+
+  if top ~= nil and bottom ~= nil and bottom - top > 1 then
     vmid = bottom - 1
   end
   if right - left > 1 then
@@ -673,17 +677,21 @@ function player:gettiles(x,y)
 
   local tiles = {}
 
-  add(tiles,{left,top})
-  if hmid ~= nil then add(tiles,{hmid,top}) end
-  add(tiles,{right,top})
+  if top ~= nil then
+    add(tiles,{left,top})
+    if hmid ~= nil then add(tiles,{hmid,top}) end
+    add(tiles,{right,top})
+  end
   if vmid ~= nil then
     add(tiles,{left,vmid})
     if hmid ~= nil then add(tiles,{hmid,vmid}) end
     add(tiles,{right,vmid})
   end
-  add(tiles,{left,bottom})
-  if hmid ~= nil then add(tiles,{hmid,bottom}) end
-  add(tiles,{right,bottom})
+  if bottom ~= nil then
+    add(tiles,{left,bottom})
+    if hmid ~= nil then add(tiles,{hmid,bottom}) end
+    add(tiles,{right,bottom})
+  end
 
   local newtiles = {}
 
