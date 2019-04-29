@@ -861,6 +861,7 @@ function level:draw()
         sectionindex += 1
       end)
     else
+      l.repeatx = l.repeatx or 1
       for i=0,l.repeatx-1 do
         map(
           l.start[1],
