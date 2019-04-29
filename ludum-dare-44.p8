@@ -411,6 +411,13 @@ function player:checkhealthtime()
   -- if self.time <= 0 then
   --   self:outoftime()
   -- end
+
+  if self.health > config.maxhealth then
+    self.health = config.maxhealth
+  end
+  if self.time > config.maxtime then
+    self.time = config.maxtime
+  end
 end
 
 function player:respawn()
