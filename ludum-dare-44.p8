@@ -12,6 +12,12 @@ flags = {
   powerup = 6,
 }
 
+sprites = {
+  player = 0,
+  roof = 23,
+  teleporter = 77,
+}
+
 config = {
   -- amount the player moves left/right every frame
   movespeed = 2.5,
@@ -73,6 +79,7 @@ config = {
   atkdmgamount = 5,
   hitstuntime = 30,
   hitstunflashframerate = 2,
+  respawnframes = 30,
 
   -- powerup
   poweruphealth = 15,
@@ -200,8 +207,9 @@ function hitbox:iscolliding(other)
          intersect(self.y, self.y + self.h, other.y, other.y + other.h)
 end
 
-function animateoptions(numoptions, rate)
-  return flr(frame / rate) % numoptions
+function animateoptions(numoptions, rate, f)
+  f = f or frame
+  return flr(f / rate) % numoptions
 end
 
 animation = class(function(a, frames, rate)
@@ -261,6 +269,11 @@ sprite = class(function(s,name)
     s.y = 16
     s.w = 8
     s.h = 8
+  elseif name == 'teleporter' then
+    s.x = 104
+    s.y = 32
+    s.w = 8
+    s.h = 8
   end
 end)
 
@@ -297,6 +310,7 @@ player = class(function(p)
   p.time = config.starttime
 
   p.hitstuntimer = 0
+  p.respawntimer = 0
 
   p.pos = p:getspawnpos()
 
@@ -352,12 +366,16 @@ function player:hurt(amount)
   self:checkhealthtime()
 end
 
-function player:attacked()
+function player:starthitstun()
   if self.hitstuntimer == 0 then
     self:hurt(config.atkdmgamount)
 
     self.hitstuntimer = config.hitstuntime
   end
+end
+
+function player:attacked()
+  self:starthitstun()
 end
 
 function player:powerup()
@@ -382,6 +400,9 @@ function player:respawn()
   self.health = config.starthealth
   self.time = config.starttime
   self.facingleft = false
+
+  self.hitstuntimer = 0
+  self.respawntimer = config.respawnframes
 end
 
 function player:die()
@@ -393,6 +414,7 @@ function player:outoftime()
 end
 
 function player:fall()
+  self:starthitstun()
   self.pos = self.checkpointpos:clone()
   self:hurt(config.falldmgamount)
   self.facingleft = false
@@ -424,6 +446,10 @@ function player:health2time()
   return success
 end
 
+function player:canmove()
+  return self.time > 0 and self.respawntimer == 0
+end
+
 function player:preupdate()
   self.d = vector()
   self.xmin = 0
@@ -433,7 +459,7 @@ function player:preupdate()
 
   local gravity = config.gravity
 
-  if self.time > 0 and btn(0) and btn(1) then
+  if self:canmove() and btn(0) and btn(1) then
     if self.movingl then
       self.d.x += config.movespeed
       self.facingleft = false
@@ -441,12 +467,12 @@ function player:preupdate()
       self.d.x -= config.movespeed
       self.facingleft = true
     end
-  elseif self.time > 0 and btn(0) then
+  elseif self:canmove() and btn(0) then
     self.d.x -= config.movespeed
     self.movingl = true
     self.movingr = false
     self.facingleft = true
-  elseif self.time > 0 and btn(1) then
+  elseif self:canmove() and btn(1) then
     self.d.x += config.movespeed
     self.movingl = false
     self.movingr = true
@@ -456,7 +482,7 @@ function player:preupdate()
     self.movingl = false
   end
 
-  if self.time > 0 and (btn(0) or btn(1)) then
+  if self:canmove() and (btn(0) or btn(1)) then
     if config.tickevent == 'move' then
       self:tick()
     end
@@ -468,7 +494,7 @@ function player:preupdate()
     self.sprite = self.standingsprite
   end
 
-  if self.time > 0 and btn(2) then
+  if self:canmove() and btn(2) then
     if (self.onplatform or (self.lastonplatform ~= nil and frame - self.lastonplatform <= config.latejumpframes)) and not self.jumpblocked then
       self.vel.y -= config.jumpspeed
       self.jumptimer = config.maxjumpframes
@@ -516,6 +542,10 @@ function player:preupdate()
     self.hitstuntimer -= 1
   end
 
+  if self.respawntimer > 0 then
+    self.respawntimer -= 1
+  end
+
   self.vel.y += gravity
   self.d = self.d:add(self.vel)
 end
@@ -561,7 +591,30 @@ function player:postupdate()
 end
 
 function player:draw()
-  if self.hitstuntimer <= 0 or animateoptions(2, config.hitstunflashframerate) == 0 then
+  if self.respawntimer > 0 then
+    local option = animateoptions(5, 3, config.respawnframes - self.respawntimer)
+
+    if self.respawntimer < config.respawnframes / 2 then
+      self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
+    end
+
+    if option == 0 then
+      sprite('teleporter'):draw(self.pos.x+self.width/2,self.pos.y + 4)
+      sprite('teleporter'):draw(self.pos.x-self.width/2,self.pos.y + 4)
+    elseif option == 1 then
+      sprite('teleporter'):draw(self.pos.x+self.width/2,self.pos.y + 4 - 3)
+      sprite('teleporter'):draw(self.pos.x-self.width/2,self.pos.y + 4 - 3)
+    elseif option == 2 then
+      sprite('teleporter'):draw(self.pos.x+self.width/2,self.pos.y + 4 - 6)
+      sprite('teleporter'):draw(self.pos.x-self.width/2,self.pos.y + 4 - 6)
+    elseif option == 3 then
+      sprite('teleporter'):draw(self.pos.x+self.width/2,self.pos.y + 4 - 9)
+      sprite('teleporter'):draw(self.pos.x-self.width/2,self.pos.y + 4 - 9)
+    elseif option == 4 then
+      sprite('teleporter'):draw(self.pos.x+self.width/2,self.pos.y + 4 - 12)
+      sprite('teleporter'):draw(self.pos.x-self.width/2,self.pos.y + 4 - 12)
+    end
+  elseif self.hitstuntimer <= 0 or animateoptions(2, config.hitstunflashframerate) == 0 then
     self.sprite:draw(self.pos.x,self.pos.y, self.facingleft)
   end
 end
@@ -1000,11 +1053,6 @@ end
 
 frame = 0
 
-sprites = {
-  player = 0,
-  roof = 23,
-}
-
 levels = {
   level()
 }
@@ -1045,11 +1093,11 @@ __gfx__
 22222277672222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006555555606666660
 2222776666662222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000665815666eeeeee6
 22776667766666220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000665566068888886
-22767767766766220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000066660068888886
+22767767766766220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0c0c0c00066660068888886
 27677776666666620000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000068888886
-27677776666677620000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000068888886
-76667766667667660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000068888886
-76666666666666660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006666660
+276777766666776200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0c0c0c0000000068888886
+76667766667667660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c1c1c1c10000000068888886
+76666666666666660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111111110000000006666660
 66656666667666660000000022222222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 76665666666666660000000022222222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 26566556666656620000000022222222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
