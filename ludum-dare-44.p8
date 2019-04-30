@@ -954,9 +954,51 @@ function powerup:draw()
   end
 end
 
+textblock = class(function(tb, texts, color, rate)
+  tb.texts = texts
+  tb.index = 1
+  tb.color = color
+  tb.rate = rate
+  tb.bgdrawn = false
+end)
+
+function textblock:draw()
+  if not self.bgdrawn then
+    palt(0, true)
+    rectfill(0, 0, 127, 127, 0)
+    self.bgdrawn = true
+  end
+
+  if (frame % self.rate) == 30 and self.index <= #self.texts then
+    color(self.color)
+    local strs = self.texts[self.index].texts
+
+    if self.texts[self.index].color then
+      color(self.texts[self.index].color)
+    end
+
+    if self.texts[self.index].align == 'center' then
+      local cursor_x=peek(0x5f26)
+      local cursor_y=peek(0x5f27)
+      local len = #strs[1]
+      print(strs[1] .. "\n\n", 64 - (len/2)*4, cursor_y)
+    else
+      foreach(strs, function(s)
+        print(s)
+      end)
+      print("\n")
+    end
+
+    self.index += 1
+  end
+  color()
+end
+
 level = class(function(l)
   l.player = player()
   l.width = 1024
+
+  l.playing = false
 
   l.enemies = {}
   l.powerups = {}
@@ -986,8 +1028,13 @@ function level:init()
   self.width = #config.levelsections * 128 * 8
 
   self.player:init()
+end
 
-  music(0)
+function level:start()
+  if not self.playing then
+    self.playing = true
+    music(0)
+  end
 end
 
 function level:resetpowerups()
@@ -997,6 +1044,8 @@ function level:resetpowerups()
 end
 
 function level:update()
+  if not self.playing then return end
+
   self.player.onplatform = false
 
   self.player.d.y = 1
@@ -1083,6 +1132,8 @@ function level:update()
 end
 
 function level:draw()
+  if not self.playing then return end
+
   local camerax = self.player.pos.x - 64 + 4
   local cameray = self.player.pos.y - 64 + 4
   local clampedcamerax = mid(0, camerax, self.width - 128)
@@ -1176,12 +1227,41 @@ end
 function _update()
   frame += 1
 
+  if not levels[1].playing and btn(0) or btn(1) or btn(2) or btn(3) or btn(4) or btn(5) then
+    levels[1]:start()
+  end
+
   levels[1]:update()
 end
 
 function _draw()
   levels[1]:draw()
+  prologue:draw()
 end
+
+prologue = textblock({
+  {
+    texts = {"a mission as important as it is", "dangerous."},
+    align = 'left'
+  },
+  {
+    texts = {"untested technology in the hands", "of one person."},
+    align = 'left'
+  },
+  {
+    texts = {"a time machine running on a", "short battery."},
+    align = 'left'
+  },
+  {
+    texts = {"recharge with blood.", "rejuvenate with power."},
+    align = 'left'
+  },
+  {
+    texts = {"press any button"},
+    align = 'center',
+    color = 8,
+  }
+}, 7, 120)
 
 frame = 0
 
