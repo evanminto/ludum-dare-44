@@ -29,6 +29,7 @@ sound = {
 config = {
   -- amount the player moves left/right every frame
   movespeed = 2.5,
+  slowmovespeed = 0.75,
 
   -- vertical speed applied while jumping (dampened by gravity)
   jumpspeed = 3.75,
@@ -440,9 +441,9 @@ function player:checkhealthtime()
     self:die()
   end
 
-  -- if self.time <= 0 then
-  --   self:outoftime()
-  -- end
+  if self.time <= 0 then
+    self.time = 0
+  end
 
   if self.health > config.maxhealth then
     self.health = config.maxhealth
@@ -510,7 +511,15 @@ function player:health2time()
 end
 
 function player:canmove()
-  return self.time > 0 and self.respawntimer == 0 and self.fallimmobiletimer == 0
+  return self.respawntimer == 0 and self.fallimmobiletimer == 0
+end
+
+function player:getmovespeed()
+  if self.time > 0 then
+    return config.movespeed
+  else
+    return config.slowmovespeed
+  end
 end
 
 function player:preupdate()
@@ -532,19 +541,19 @@ function player:preupdate()
 
   if self:canmove() and btn(0) and btn(1) then
     if self.movingl then
-      self.d.x += config.movespeed
+      self.d.x += self:getmovespeed()
       self.facingleft = false
     elseif self.movingr then
-      self.d.x -= config.movespeed
+      self.d.x -= self:getmovespeed()
       self.facingleft = true
     end
   elseif self:canmove() and btn(0) then
-    self.d.x -= config.movespeed
+    self.d.x -= self:getmovespeed()
     self.movingl = true
     self.movingr = false
     self.facingleft = true
   elseif self:canmove() and btn(1) then
-    self.d.x += config.movespeed
+    self.d.x += self:getmovespeed()
     self.movingl = false
     self.movingr = true
     self.facingleft = false
