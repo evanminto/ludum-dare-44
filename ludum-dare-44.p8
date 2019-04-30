@@ -95,7 +95,7 @@ config = {
   maxhealth = 58,
   starthealth = 29,
   falldmgamount = 7,
-  atkdmgamount = 7,
+  atkdmgamount = 8,
   hitstuntime = 30,
   fallimmobile = 15,
   hitstunflashframerate = 2,
@@ -110,7 +110,7 @@ config = {
   maxtime = 58,
   starttime = 29,
   tickframes = 60,
-  tickamount = 0.04,
+  tickamount = 0.05,
   tickevent = 'move',
 
   -- amount lost/gained each time you convert between health/time
