@@ -126,6 +126,8 @@ config = {
   timetext = 'BATTERY',
   healthconverttext = 'Z',
   timeconverttext = 'X',
+
+  epiloguelocktimer = 120,
 }
 
 -- class.lua
@@ -343,6 +345,8 @@ player = class(function(p)
   p.health = config.starthealth
   p.time = config.starttime
 
+  p.won = false
+
   p.hitstuntimer = 0
   p.respawntimer = 0
 
@@ -391,7 +395,9 @@ function player:gethitbox()
 end
 
 function player:win()
-  self:respawn()
+  self.won = true
+  levels[1]:stop()
+  epiloguelocktimer = config.epiloguelocktimer
 end
 
 function player:tick()
@@ -451,6 +457,7 @@ function player:respawn()
   self.time = config.starttime
   self.facingleft = false
 
+  self.won = false
   self.hitstuntimer = 0
   self.respawntimer = config.respawnframes
 
@@ -585,11 +592,13 @@ function player:preupdate()
 
   if btn(4) then
     if not btn(5) then
-      local success = self:time2health()
-      if success then self.convertingtime2health = true end
-      if success and not self.time2healthsfxplayed then
-        sfx(sound.time2health)
-        self.time2healthsfxplayed = true
+      if self:canmove() then
+        local success = self:time2health()
+        if success then self.convertingtime2health = true end
+        if success and not self.time2healthsfxplayed then
+          sfx(sound.time2health)
+          self.time2healthsfxplayed = true
+        end
       end
     end
   else
@@ -598,11 +607,13 @@ function player:preupdate()
 
   if btn(5) then
     if not btn(4) then
-      local success = self:health2time()
-      if success then self.convertinghealth2time = true end
-      if success and not self.health2timesfxplayed then
-        sfx(sound.health2time)
-        self.health2timesfxplayed = true
+      if self:canmove() then
+        local success = self:health2time()
+        if success then self.convertinghealth2time = true end
+        if success and not self.health2timesfxplayed then
+          sfx(sound.health2time)
+          self.health2timesfxplayed = true
+        end
       end
     end
   else
@@ -954,13 +965,22 @@ function powerup:draw()
   end
 end
 
-textblock = class(function(tb, texts, color, rate)
+textblock = class(function(tb, texts, color, rate, frameinterval)
   tb.texts = texts
   tb.index = 1
   tb.color = color
   tb.rate = rate
   tb.bgdrawn = false
+  tb.firstdraw = false
+  tb.frameinterval = frameinterval or 30
+  tb.firstframe = nil
 end)
+
+function textblock:reset()
+  self.firstdraw = false
+  self.firstframe = nil
+  self.bgdrawn = false
+end
 
 function textblock:draw()
   if not self.bgdrawn then
@@ -969,7 +989,13 @@ function textblock:draw()
     self.bgdrawn = true
   end
 
-  if (frame % self.rate) == 30 and self.index <= #self.texts then
+  if self.firstframe == nil then
+    self.firstframe = frame
+  end
+
+  local thisframe = frame - self.firstframe
+
+  if (thisframe % self.rate) == self.frameinterval and self.index <= #self.texts then
     color(self.color)
     local strs = self.texts[self.index].texts
 
@@ -984,7 +1010,13 @@ function textblock:draw()
       print(strs[1] .. "\n\n", 64 - (len/2)*4, cursor_y)
     else
       foreach(strs, function(s)
-        print(s)
+        if not self.firstdraw then
+          print(s, 4, 4)
+          cursor(4,10)
+          self.firstdraw = true
+        else
+          print(s)
+        end
       end)
       print("\n")
     end
@@ -1034,6 +1066,13 @@ function level:start()
   if not self.playing then
     self.playing = true
     music(0)
+  end
+end
+
+function level:stop()
+  if self.playing then
+    self.playing = false
+    music(-1)
   end
 end
 
@@ -1227,17 +1266,32 @@ end
 function _update()
   frame += 1
 
-  if not levels[1].playing and btn(0) or btn(1) or btn(2) or btn(3) or btn(4) or btn(5) then
+  if epiloguelocktimer > 0 then
+    epiloguelocktimer -= 1
+  end
+
+  if not levels[1].playing and (btn(0) or btn(1) or btn(2) or btn(3) or btn(4)
+  or btn(5)) and epiloguelocktimer == 0 then
     levels[1]:start()
+    levels[1].player:respawn()
+    prologue:reset()
+    epilogue:reset()
   end
 
   levels[1]:update()
 end
 
 function _draw()
-  levels[1]:draw()
-  prologue:draw()
+  if levels[1].playing then
+    levels[1]:draw()
+  elseif levels[1].player.won then
+    epilogue:draw()
+  else
+    prologue:draw()
+  end
 end
+
+epiloguelocktimer = 0
 
 prologue = textblock({
   {
@@ -1262,6 +1316,30 @@ prologue = textblock({
     color = 8,
   }
 }, 7, 120)
+
+epilogue = textblock({
+  {
+    texts = {"this brave individual dared to", "travel through time,"},
+    align = 'left'
+  },
+  {
+    texts = {"potentially decimating the", "fabric of reality,"},
+    align = 'left'
+  },
+  {
+    texts = {"so as to avoid late filing fees", "from the i.r.s."},
+    align = 'left'
+  },
+  {
+    texts = {"do your taxes on time", "or suffer the consequences."},
+    align = 'left'
+  },
+  {
+    texts = {"press any button to play again"},
+    align = 'center',
+    color = 8,
+  }
+}, 7, 120, 15)
 
 frame = 0
 
