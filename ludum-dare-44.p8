@@ -96,6 +96,7 @@ config = {
   falldmgamount = 7,
   atkdmgamount = 7,
   hitstuntime = 30,
+  fallimmobile = 15,
   hitstunflashframerate = 2,
   respawnframes = 30,
 
@@ -349,6 +350,7 @@ player = class(function(p)
 
   p.hitstuntimer = 0
   p.respawntimer = 0
+  p.fallimmobiletimer = 0
 
   p.poweringup = false
   p.poweringuptimer = 0
@@ -460,6 +462,7 @@ function player:respawn()
   self.won = false
   self.hitstuntimer = 0
   self.respawntimer = config.respawnframes
+  self.fallimmobiletimer = 0
 
   levels[1]:resetpowerups()
 end
@@ -477,6 +480,7 @@ function player:fall()
   self.pos = self.checkpointpos:clone()
   self:hurt(config.falldmgamount)
   self.facingleft = false
+  self.fallimmobiletimer = config.fallimmobile
 end
 
 function player:time2health()
@@ -506,7 +510,7 @@ function player:health2time()
 end
 
 function player:canmove()
-  return self.time > 0 and self.respawntimer == 0
+  return self.time > 0 and self.respawntimer == 0 and self.fallimmobiletimer == 0
 end
 
 function player:preupdate()
@@ -626,6 +630,10 @@ function player:preupdate()
 
   if self.respawntimer > 0 then
     self.respawntimer -= 1
+  end
+
+  if self.fallimmobiletimer > 0 then
+    self.fallimmobiletimer -= 1
   end
 
   self.vel.y += gravity
@@ -1299,7 +1307,7 @@ prologue = textblock({
     align = 'left'
   },
   {
-    texts = {"untested technology in the hands", "of one person."},
+    texts = {"untested technology in the", "hands of one person."},
     align = 'left'
   },
   {
@@ -1315,7 +1323,7 @@ prologue = textblock({
     align = 'center',
     color = 8,
   }
-}, 7, 120)
+}, 7, 60)
 
 epilogue = textblock({
   {
@@ -1339,7 +1347,7 @@ epilogue = textblock({
     align = 'center',
     color = 8,
   }
-}, 7, 120, 15)
+}, 7, 60, 15)
 
 frame = 0
 
